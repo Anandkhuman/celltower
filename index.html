@@ -1,118 +1,91 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Cell Tower Locator (Mozilla API)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <title>Cell Tower Locator</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    form {
-      margin-bottom: 20px;
-    }
-    label {
-      display: inline-block;
-      width: 100px;
-    }
-    input, select {
-      margin-bottom: 10px;
-      width: 150px;
+    #result {
+      margin-top: 20px;
     }
     #map {
+      width: 100%;
       height: 400px;
+      margin-top: 10px;
       border: 1px solid #ccc;
-      margin-bottom: 20px;
-    }
-    #locationInfo {
-      font-size: 16px;
-      font-weight: bold;
     }
   </style>
 </head>
 <body>
+  <h2>Cell Tower Location Finder</h2>
+  <form id="locationForm">
+    <label>Radio Type:</label>
+    <select id="radioType">
+      <option value="gsm">GSM</option>
+      <option value="wcdma">WCDMA</option>
+      <option value="lte">LTE</option>
+      <option value="nr">5G (NR)</option>
+    </select><br><br>
 
-<h2>Cell Tower Locator (Mozilla API)</h2>
+    <label>MCC:</label><input id="mcc" value="310"><br><br>
+    <label>MNC:</label><input id="mnc" value="260"><br><br>
+    <label>LAC:</label><input id="lac" value="7033"><br><br>
+    <label>CID:</label><input id="cid" value="17811"><br><br>
 
-<form id="locationForm">
-  <label>Radio Type:</label>
-  <select id="radioType">
-    <option value="gsm">GSM</option>
-    <option value="wcdma">WCDMA</option>
-    <option value="lte">LTE</option>
-    <option value="nr">5G (NR)</option>
-  </select><br>
+    <button type="submit">Locate</button>
+  </form>
 
-  <label>MCC:</label><input id="mcc" value="310"><br>
-  <label>MNC:</label><input id="mnc" value="260"><br>
-  <label>LAC:</label><input id="lac" value="7033"><br>
-  <label>CID:</label><input id="cid" value="17811"><br>
+  <div id="result">
+    <p id="locationText">Location will appear here...</p>
+    <iframe id="map" src="" allowfullscreen></iframe>
+  </div>
 
-  <button type="submit">Locate</button>
-</form>
+  <script>
+    document.getElementById('locationForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
 
-<div id="map"></div>
-<div id="locationInfo">Location info will appear here after lookup.</div>
+      const radio = document.getElementById('radioType').value;
+      const mcc = document.getElementById('mcc').value;
+      const mnc = document.getElementById('mnc').value;
+      const lac = document.getElementById('lac').value;
+      const cid = document.getElementById('cid').value;
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-  const map = L.map('map').setView([20, 0], 2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-  let marker, circle;
+      const apiKey = 'pk.29e69f80b9f69d27836f37d2d63c5efb';
 
-  document.getElementById('locationForm').onsubmit = async function(e) {
-    e.preventDefault();
+      const url = 'https://us1.unwiredlabs.com/v2/process.php';
 
-    const radio = document.getElementById('radioType').value;
-    const mcc = parseInt(document.getElementById('mcc').value);
-    const mnc = parseInt(document.getElementById('mnc').value);
-    const lac = parseInt(document.getElementById('lac').value);
-    const cid = parseInt(document.getElementById('cid').value);
+      const payload = {
+        token: apiKey,
+        radio: radio,
+        mcc: parseInt(mcc),
+        mnc: parseInt(mnc),
+        cells: [{ lac: parseInt(lac), cid: parseInt(cid) }],
+        address: 1
+      };
 
-    const requestData = {
-      cellTowers: [{
-        radioType: radio,
-        mobileCountryCode: mcc,
-        mobileNetworkCode: mnc,
-        locationAreaCode: lac,
-        cellId: cid
-      }]
-    };
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-    try {
-      const response = await fetch("https://location.services.mozilla.com/v1/geolocate?key=test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestData)
-      });
+        const data = await response.json();
 
-      const data = await response.json();
+        if (data.status === 'ok') {
+          const lat = data.lat;
+          const lon = data.lon;
+          const address = data.address || "No address info";
 
-      if (data && data.location) {
-        const { lat, lng } = data.location;
-        const accuracy = data.accuracy;
-
-        if (marker) map.removeLayer(marker);
-        if (circle) map.removeLayer(circle);
-
-        marker = L.marker([lat, lng]).addTo(map).bindPopup("📍 Estimated Location").openPopup();
-        circle = L.circle([lat, lng], { radius: accuracy, color: 'green', fillOpacity: 0.2 }).addTo(map);
-        map.setView([lat, lng], 13);
-
-        document.getElementById('locationInfo').innerText =
-          `Latitude: ${lat.toFixed(6)}, Longitude: ${lng.toFixed(6)}, Accuracy: ±${accuracy} meters`;
-      } else {
-        document.getElementById('locationInfo').innerText = "Location not found.";
+          document.getElementById('locationText').innerText = `Latitude: ${lat}, Longitude: ${lon}\nAddress: ${address}`;
+          document.getElementById('map').src = `https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed`;
+        } else {
+          document.getElementById('locationText').innerText = `Error: ${data.message || 'Unknown error'}`;
+          document.getElementById('map').src = '';
+        }
+      } catch (error) {
+        document.getElementById('locationText').innerText = 'Request failed. Check console for details.';
+        console.error(error);
       }
-    } catch (err) {
-      console.error(err);
-      alert("Error fetching location.");
-      document.getElementById('locationInfo').innerText = "Error retrieving location.";
-    }
-  };
-</script>
-
+    });
+  </script>
 </body>
 </html>
