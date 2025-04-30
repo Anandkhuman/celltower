@@ -129,22 +129,19 @@
     <label>Radio Type:</label>
     <select id="radioType">
       <option value="gsm">GSM</option>
-      <option value="wcdma">WCDMA</option>
-      <option value="lte">LTE</option>
-      <option value="nr">5G (NR)</option>
     </select>
 
     <label>MCC:</label>
-    <input id="mcc" value="310" />
+    <input id="mcc" value="404" />
 
     <label>MNC:</label>
-    <input id="mnc" value="260" />
+    <input id="mnc" value="10" />
 
     <label>LAC:</label>
-    <input id="lac" value="7033" />
+    <input id="lac" value="100" />
 
     <label>CID:</label>
-    <input id="cid" value="17811" />
+    <input id="cid" value="20000" />
 
     <button type="submit">Locate</button>
   </form>
@@ -164,7 +161,6 @@
   <script>
     const form = document.getElementById('locationForm');
     const loadingBar = document.getElementById('loadingBar');
-    const progress = document.getElementById('progress');
     const map = document.getElementById('map');
     const locationText = document.getElementById('locationText');
 
